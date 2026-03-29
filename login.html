@@ -1,0 +1,183 @@
+
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Login System</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <!-- Google Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Poppins', sans-serif;
+    }
+
+    body {
+      height: 100vh;
+      background: linear-gradient(135deg, #1e1e2f, #3a3a60);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .container {
+      position: relative;
+      width: 350px;
+    }
+
+    .card {
+      background: rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(20px);
+      border-radius: 20px;
+      padding: 40px 30px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+      color: white;
+      text-align: center;
+      animation: fadeIn 1s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .card h2 {
+      margin-bottom: 25px;
+      font-weight: 600;
+    }
+
+    .input-group {
+      position: relative;
+      margin-bottom: 20px;
+    }
+
+    .input-group input {
+      width: 100%;
+      padding: 12px 40px 12px 12px;
+      border: none;
+      outline: none;
+      border-radius: 10px;
+      background: rgba(255,255,255,0.1);
+      color: white;
+      font-size: 14px;
+    }
+
+    .input-group input::placeholder {
+      color: #ccc;
+    }
+
+    .btn {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      font-weight: 600;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+
+    .btn:hover {
+      transform: scale(1.05);
+      box-shadow: 0 5px 20px rgba(0,0,0,0.4);
+    }
+
+    .error {
+      color: #ff6b6b;
+      margin-top: 10px;
+      font-size: 13px;
+    }
+
+    .loading {
+      opacity: 0.7;
+      pointer-events: none;
+    }
+
+    .footer {
+      margin-top: 15px;
+      font-size: 13px;
+      color: #ccc;
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="container">
+  <div class="card" id="card">
+    <h2>🔐 Đăng nhập hệ thống</h2>
+
+    <div class="input-group">
+      <input type="email" id="email" placeholder="Email">
+    </div>
+
+    <div class="input-group">
+      <input type="password" id="password" placeholder="Mật khẩu">
+    </div>
+
+    <button class="btn" onclick="login()">Đăng nhập</button>
+
+    <p class="error" id="error"></p>
+
+    <div class="footer">
+      © LMS System
+    </div>
+  </div>
+</div>
+
+<script>
+  // 🔥 THAY THÔNG TIN SUPABASE
+  const SUPABASE_URL = "https://zpvhxuwwgrtqbgziylbl.supabase.co";
+  const SUPABASE_KEY = "sb_publishable_u0kVgF9XCLTk5tD9M_xj9w_9lKguAgf";
+
+  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  async function login() {
+    const email = document.getElementById("email").value;
+    const password = document.getElementById("password").value;
+    const errorEl = document.getElementById("error");
+    const card = document.getElementById("card");
+
+    errorEl.innerText = "";
+
+    if (!email || !password) {
+      errorEl.innerText = "Vui lòng nhập đầy đủ thông tin!";
+      return;
+    }
+
+    card.classList.add("loading");
+
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: email,
+      password: password
+    });
+
+    card.classList.remove("loading");
+
+    if (error) {
+      errorEl.innerText = "❌ Sai email hoặc mật khẩu!";
+      return;
+    }
+
+    // ✅ Thành công
+    errorEl.style.color = "#4ade80";
+    errorEl.innerText = "✅ Đăng nhập thành công! Đang chuyển trang...";
+
+    setTimeout(() => {
+      window.location.href = "https://nhatnc80.github.io/portalsport/"; // 👉 đổi link tại đây
+    }, 1000);
+  }
+</script>
+
+</body>
+</html>
+
