@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="vi">
 <head>
@@ -6,48 +5,63 @@
   <title>LMS Login</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+  <!-- Supabase -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+
+  <!-- Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
 
   <style>
-    body {
+    * {
       margin: 0;
-      font-family: 'Poppins', sans-serif;
-      background: linear-gradient(135deg, #1f1f2e, #3a3a60);
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Inter', sans-serif;
+    }
+
+    body {
+      height: 100vh;
+      background: radial-gradient(circle at top, #1f1f2e, #0f0f18);
       display: flex;
       justify-content: center;
       align-items: center;
-      height: 100vh;
     }
 
-    .card {
-      background: rgba(255,255,255,0.08);
-      backdrop-filter: blur(20px);
+    .login-box {
+      width: 380px;
       padding: 40px;
       border-radius: 20px;
-      width: 340px;
+      background: rgba(255,255,255,0.06);
+      backdrop-filter: blur(25px);
+      box-shadow: 0 25px 60px rgba(0,0,0,0.6);
       color: white;
-      box-shadow: 0 20px 40px rgba(0,0,0,0.4);
     }
 
     h2 {
       text-align: center;
-      margin-bottom: 20px;
+      margin-bottom: 25px;
     }
 
     select, input {
       width: 100%;
       padding: 12px;
-      margin: 10px 0;
+      margin-bottom: 15px;
       border-radius: 10px;
       border: none;
-      background: rgba(255,255,255,0.1);
+      background: rgba(255,255,255,0.08);
       color: white;
+      font-size: 14px;
     }
 
-    option { color: black; }
+    select option {
+      color: black;
+    }
 
-    button {
+    input::placeholder {
+      color: #aaa;
+    }
+
+    .btn {
       width: 100%;
       padding: 12px;
       border-radius: 10px;
@@ -56,32 +70,42 @@
       color: white;
       font-weight: 600;
       cursor: pointer;
+      transition: 0.3s;
     }
 
-    .error {
-      color: #ff6b6b;
+    .btn:hover {
+      transform: scale(1.03);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+
+    .msg {
       text-align: center;
       margin-top: 10px;
+      font-size: 14px;
     }
+
+    .error { color: #ff6b6b; }
+    .success { color: #4ade80; }
   </style>
 </head>
 
 <body>
 
-<div class="card">
-  <h2>🎓 LMS Login</h2>
+<div class="login-box">
+  <h2>🔐 LMS Login</h2>
 
+  <!-- 🔥 SELECT ROLE -->
   <select id="role">
-    <option value="student">Học sinh</option>
-    <option value="teacher">Giáo viên</option>
+    <option value="student">🎓 Học sinh</option>
+    <option value="teacher">👨‍🏫 Giáo viên</option>
   </select>
 
   <input type="email" id="email" placeholder="Email">
   <input type="password" id="password" placeholder="Mật khẩu">
 
-  <button onclick="login()">Đăng nhập</button>
+  <button class="btn" onclick="login()">Đăng nhập</button>
 
-  <p class="error" id="error"></p>
+  <div class="msg" id="msg"></div>
 </div>
 
 <script>
@@ -92,47 +116,70 @@ const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 async function login() {
   const role = document.getElementById("role").value;
-  const email = document.getElementById("email").value;
-  const password = document.getElementById("password").value;
-  const errorEl = document.getElementById("error");
+  const email = document.getElementById("email").value.trim();
+  const password = document.getElementById("password").value.trim();
+  const msg = document.getElementById("msg");
 
-  errorEl.innerText = "";
+  msg.innerHTML = "";
 
-  // 1. LOGIN AUTH
+  if (!email || !password) {
+    msg.innerHTML = "<span class='error'>Vui lòng nhập đầy đủ thông tin</span>";
+    return;
+  }
+
+  // 🔐 1. LOGIN AUTH
   const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
     email,
     password
   });
 
-  if (authError) {
-    errorEl.innerText = "Sai email hoặc mật khẩu!";
+  if (authError || !authData.user) {
+    msg.innerHTML = "<span class='error'>Sai email hoặc mật khẩu</span>";
     return;
   }
 
   const userId = authData.user.id;
 
-  // 2. CHECK ROLE TRONG DB
-  let table = role === "teacher" ? "teachers" : "students";
-
-  const { data, error } = await supabase
-    .from(table)
-    .select("*")
+  // 🔥 2. CHECK CẢ 2 ROLE (BẢO MẬT)
+  const { data: teacherData } = await supabase
+    .from("teachers")
+    .select("id")
     .eq("user_id", userId)
-    .single();
+    .maybeSingle();
 
-  if (error || !data) {
-    errorEl.innerText = "Tài khoản không thuộc quyền này!";
+  const { data: studentData } = await supabase
+    .from("students")
+    .select("id")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  // 🔥 3. VALIDATE ROLE
+  if (role === "teacher" && !teacherData) {
+    msg.innerHTML = "<span class='error'>Tài khoản không phải Giáo viên</span>";
     return;
   }
 
-  // 3. REDIRECT
-  if (role === "teacher") {
-    window.location.href = "https://nhatnc80.github.io/portalsport/";
-  } else {
-    window.location.href = "https://nhatnc80.github.io/portalsport/";
+  if (role === "student" && !studentData) {
+    msg.innerHTML = "<span class='error'>Tài khoản không phải Học sinh</span>";
+    return;
   }
+
+  // 🔥 4. Lưu role
+  localStorage.setItem("role", role);
+
+  msg.innerHTML = "<span class='success'>Đăng nhập thành công...</span>";
+
+  // 🔥 5. REDIRECT
+  setTimeout(() => {
+    if (role === "teacher") {
+      window.location.href = "https://nhatnc80.github.io/portalsport/";
+    } else {
+      window.location.href = "https://nhatnc80.github.io/portalsport/";
+    }
+  }, 800);
 }
 </script>
 
 </body>
 </html>
+
