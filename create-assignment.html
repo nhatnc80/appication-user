@@ -81,7 +81,7 @@
 </div>
 
 <script>
-const supabase = window.supabase.createClient(
+const sb = window.supabase.createClient(
   "https://zpvhxuwwgrtqbgziylbl.supabase.co",
   "sb_publishable_u0kVgF9XCLTk5tD9M_xj9w_9lKguAgf"
 );
@@ -94,7 +94,7 @@ if (localStorage.getItem("role") !== "teacher") {
 
 // 🚀 Load lessons từ DB
 async function loadLessons() {
-  const { data, error } = await supabase
+  const { data, error } = await sb
     .from("lessons")
     .select("lesson_id, title")
     .order("lesson_id", { ascending: true });
@@ -148,7 +148,7 @@ async function create() {
     due_date = due.replace("T", " ");
   }
 
-  const { error } = await supabase
+  const { error } = await sb
     .from("assignments")
     .insert([{
       lesson_id: parseInt(lesson_id),
