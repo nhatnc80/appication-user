@@ -94,7 +94,6 @@
 <div class="login-box">
   <h2>🔐 LMS Login</h2>
 
-  <!-- 🔥 SELECT ROLE -->
   <select id="role">
     <option value="student">🎓 Học sinh</option>
     <option value="teacher">👨‍🏫 Giáo viên</option>
@@ -127,59 +126,65 @@ async function login() {
     return;
   }
 
-  // 🔐 1. LOGIN AUTH
-  const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-    email,
-    password
-  });
+  let result;
 
-  if (authError || !authData.user) {
-    msg.innerHTML = "<span class='error'>Sai email hoặc mật khẩu</span>";
-    return;
-  }
-
-  const userId = authData.user.id;
-
-  // 🔥 2. CHECK CẢ 2 ROLE (BẢO MẬT)
-  const { data: teacherData } = await supabase
-    .from("teachers")
-    .select("id")
-    .eq("user_id", userId)
-    .maybeSingle();
-
-  const { data: studentData } = await supabase
-    .from("students")
-    .select("id")
-    .eq("user_id", userId)
-    .maybeSingle();
-
-  // 🔥 3. VALIDATE ROLE
-  if (role === "teacher" && !teacherData) {
-    msg.innerHTML = "<span class='error'>Tài khoản không phải Giáo viên</span>";
-    return;
-  }
-
-  if (role === "student" && !studentData) {
-    msg.innerHTML = "<span class='error'>Tài khoản không phải Học sinh</span>";
-    return;
-  }
-
-  // 🔥 4. Lưu role
-  localStorage.setItem("role", role);
-
-  msg.innerHTML = "<span class='success'>Đăng nhập thành công...</span>";
-
-  // 🔥 5. REDIRECT
-  setTimeout(() => {
+  try {
+    // 🔥 Query theo role
     if (role === "teacher") {
-      window.location.href = "https://nhatnc80.github.io/portalsport/";
+      result = await supabase
+        .from("teachers")
+        .select("teacher_id")
+        .eq("email", email)
+        .eq("password", password)
+        .maybeSingle();
     } else {
-      window.location.href = "https://nhatnc80.github.io/portalsport/";
+      result = await supabase
+        .from("students")
+        .select("student_id")
+        .eq("email", email)
+        .eq("password", password)
+        .maybeSingle();
     }
-  }, 800);
+
+    const { data, error } = result;
+
+    if (error) {
+      console.error(error);
+      msg.innerHTML = "<span class='error'>Lỗi hệ thống</span>";
+      return;
+    }
+
+    if (!data) {
+      msg.innerHTML = "<span class='error'>Sai email hoặc mật khẩu</span>";
+      return;
+    }
+
+    // 🔥 Lưu session
+    localStorage.setItem("role", role);
+
+    if (role === "teacher") {
+      localStorage.setItem("teacher_id", data.teacher_id);
+    } else {
+      localStorage.setItem("student_id", data.student_id);
+    }
+
+    msg.innerHTML = "<span class='success'>Đăng nhập thành công...</span>";
+
+    // 🔥 Redirect
+    setTimeout(() => {
+      if (role === "teacher") {
+        window.location.href = "https://nhatnc80.github.io/portalsport/";
+      } else {
+        window.location.href = "https://nhatnc80.github.io/portalsport/";
+      }
+    }, 800);
+
+  } catch (err) {
+    console.error(err);
+    msg.innerHTML = "<span class='error'>Lỗi kết nối</span>";
+  }
 }
 </script>
 
 </body>
 </html>
-
