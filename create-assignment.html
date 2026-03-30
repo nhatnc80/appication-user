@@ -22,10 +22,6 @@
       box-shadow: 0 10px 30px rgba(0,0,0,0.1);
     }
 
-    h2 {
-      margin-bottom: 20px;
-    }
-
     input, textarea, select {
       width: 100%;
       padding: 10px;
@@ -48,11 +44,6 @@
     button:hover {
       background: #4338ca;
     }
-
-    .hint {
-      font-size: 12px;
-      color: gray;
-    }
   </style>
 </head>
 
@@ -69,9 +60,7 @@
 
   <!-- Lesson -->
   <label>Bài học</label>
-  <select id="lesson">
-    <option value="">-- Chọn bài học --</option>
-  </select>
+  <select id="lesson"></select>
 
   <!-- Title -->
   <input id="title" placeholder="Tiêu đề bài tập">
@@ -79,18 +68,15 @@
   <!-- Description -->
   <textarea id="desc" placeholder="Mô tả"></textarea>
 
-  <!-- GitHub -->
-  <input id="github" placeholder="Link GitHub repo (nếu có)">
-
-  <!-- Upload -->
+  <!-- Upload file -->
   <label>Upload file bài tập</label>
   <input type="file" id="file">
-  <p class="hint">👉 Có thể upload file hoặc dùng GitHub</p>
 
   <!-- Max score -->
   <input id="score" type="number" value="10">
 
   <!-- Due date -->
+  <label>Ngày kết thúc</label>
   <input id="due" type="datetime-local">
 
   <button onclick="create()">Tạo bài tập</button>
@@ -109,25 +95,19 @@ if (localStorage.getItem("role") !== "teacher") {
 }
 
 // 🚀 Load lessons
-async function loadLessons() {
+document.addEventListener("DOMContentLoaded", async () => {
   const select = document.getElementById("lesson");
-  select.innerHTML = '<option value="">-- Chọn bài học --</option>';
 
   const { data, error } = await sb
     .from("lessons")
-    .select("lesson_id, title")
-    .order("lesson_id", { ascending: true });
+    .select("lesson_id, title");
 
   if (error) {
-    console.error(error);
-    alert("Không load được lesson");
+    alert("Không load được lessons");
     return;
   }
 
-  if (!data || data.length === 0) {
-    alert("Chưa có bài học nào!");
-    return;
-  }
+  select.innerHTML = '<option value="">-- Chọn bài học --</option>';
 
   data.forEach(l => {
     const opt = document.createElement("option");
@@ -135,85 +115,66 @@ async function loadLessons() {
     opt.textContent = l.title;
     select.appendChild(opt);
   });
-}
+});
 
-loadLessons();
-
-// 🚀 Tạo bài tập
+// 🚀 CREATE ASSIGNMENT
 async function create() {
   const lesson_id = document.getElementById("lesson").value;
   const title = document.getElementById("title").value.trim();
   const desc = document.getElementById("desc").value.trim();
-  const githubInput = document.getElementById("github").value.trim();
   const file = document.getElementById("file").files[0];
   const score = document.getElementById("score").value;
   const due = document.getElementById("due").value;
 
-  // ✅ Validate
-  if (!lesson_id) return alert("Vui lòng chọn bài học");
-  if (!title) return alert("Tiêu đề không được để trống");
+  if (!lesson_id) return alert("Chọn bài học");
+  if (!title) return alert("Nhập tiêu đề");
+  if (!file) return alert("Phải upload file");
 
-  let fileUrl = null;
+  // 🚀 Upload file
+  const fileName = Date.now() + "_" + file.name;
 
-  // 🚀 Upload file nếu có
-  if (file) {
-    const fileName = Date.now() + "_" + file.name;
+  const { error: uploadError } = await sb
+    .storage
+    .from("submissions")
+    .upload(fileName, file);
 
-    const { error: uploadError } = await sb
-      .storage
-      .from("submissions")
-      .upload(fileName, file);
-
-    if (uploadError) {
-      console.error(uploadError);
-      return alert("Upload file lỗi!");
-    }
-
-    // 🔗 Lấy public URL
-    const { data: publicUrlData } = sb
-      .storage
-      .from("submissions")
-      .getPublicUrl(fileName);
-
-    fileUrl = publicUrlData.publicUrl;
+  if (uploadError) {
+    console.error(uploadError);
+    return alert("Upload lỗi!");
   }
 
-  // 🔗 Ưu tiên GitHub > file
-  let finalUrl = githubInput || fileUrl;
+  // 🔗 Lấy link file
+  const { data } = sb
+    .storage
+    .from("submissions")
+    .getPublicUrl(fileName);
 
-  if (!finalUrl) {
-    return alert("Bạn phải nhập GitHub hoặc upload file");
-  }
+  const fileUrl = data.publicUrl;
 
-  if (githubInput && !githubInput.includes("github.com")) {
-    return alert("Link GitHub không hợp lệ");
-  }
+  // 🕒 Ngày kết thúc -> lưu vào updated_at
+  let updated_at = due ? new Date(due).toISOString() : null;
 
-  // 🕒 Convert datetime
-  let due_date = due ? due.replace("T", " ") : null;
-
+  // 🚀 Insert DB
   const { error } = await sb
     .from("assignments")
     .insert([{
       lesson_id: parseInt(lesson_id),
       title: title,
       description: desc,
-      github_repo_url: finalUrl,
+      github_repo_url: fileUrl,
       max_score: parseInt(score || 10),
-      due_date: due_date,
-      updated_at: new Date().toISOString()
+      updated_at: updated_at
     }]);
 
   if (error) {
     console.error(error);
     alert("Lỗi: " + error.message);
   } else {
-    alert("🎉 Tạo bài tập thành công!");
+    alert("🎉 Tạo thành công!");
 
-    // reset form
+    // reset
     document.getElementById("title").value = "";
     document.getElementById("desc").value = "";
-    document.getElementById("github").value = "";
     document.getElementById("file").value = "";
     document.getElementById("score").value = 10;
     document.getElementById("due").value = "";
