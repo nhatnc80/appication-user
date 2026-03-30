@@ -150,7 +150,8 @@ async function login() {
     }
 
     const { data, error } = result;
-
+    console.log("DATA:", data);
+    console.log("ERROR:", error);
     if (error) {
       console.error(error);
       msg.innerHTML = "<span class='error'>Lỗi hệ thống</span>";
