@@ -48,13 +48,24 @@
     button:hover {
       background: #4338ca;
     }
+
+    .hint {
+      font-size: 12px;
+      color: gray;
+    }
   </style>
 </head>
 
 <body>
 
 <div class="container">
-  <h2>📘 Giao bài tập     🎾 <a href="https://nhatnc80.github.io/portalsport/" style="text-decoration: none; color:orange;">Cổng học liệu</a></h2>
+  <h2>
+    📘 Giao bài tập 🎾 
+    <a href="https://nhatnc80.github.io/portalsport/" 
+       style="text-decoration: none; color:orange;">
+       Cổng học liệu
+    </a>
+  </h2>
 
   <!-- Lesson -->
   <label>Bài học</label>
@@ -69,7 +80,12 @@
   <textarea id="desc" placeholder="Mô tả"></textarea>
 
   <!-- GitHub -->
-  <input id="github" placeholder="GitHub repo template">
+  <input id="github" placeholder="Link GitHub repo (nếu có)">
+
+  <!-- Upload -->
+  <label>Upload file bài tập</label>
+  <input type="file" id="file">
+  <p class="hint">👉 Có thể upload file hoặc dùng GitHub</p>
 
   <!-- Max score -->
   <input id="score" type="number" value="10">
@@ -92,8 +108,11 @@ if (localStorage.getItem("role") !== "teacher") {
   window.location.href = "login.html";
 }
 
-// 🚀 Load lessons từ DB
+// 🚀 Load lessons
 async function loadLessons() {
+  const select = document.getElementById("lesson");
+  select.innerHTML = '<option value="">-- Chọn bài học --</option>';
+
   const { data, error } = await sb
     .from("lessons")
     .select("lesson_id, title")
@@ -105,7 +124,10 @@ async function loadLessons() {
     return;
   }
 
-  const select = document.getElementById("lesson");
+  if (!data || data.length === 0) {
+    alert("Chưa có bài học nào!");
+    return;
+  }
 
   data.forEach(l => {
     const opt = document.createElement("option");
@@ -122,31 +144,53 @@ async function create() {
   const lesson_id = document.getElementById("lesson").value;
   const title = document.getElementById("title").value.trim();
   const desc = document.getElementById("desc").value.trim();
-  const github = document.getElementById("github").value.trim();
+  const githubInput = document.getElementById("github").value.trim();
+  const file = document.getElementById("file").files[0];
   const score = document.getElementById("score").value;
   const due = document.getElementById("due").value;
 
   // ✅ Validate
-  if (!lesson_id) {
-    alert("Vui lòng chọn bài học");
-    return;
+  if (!lesson_id) return alert("Vui lòng chọn bài học");
+  if (!title) return alert("Tiêu đề không được để trống");
+
+  let fileUrl = null;
+
+  // 🚀 Upload file nếu có
+  if (file) {
+    const fileName = Date.now() + "_" + file.name;
+
+    const { error: uploadError } = await sb
+      .storage
+      .from("submissions")
+      .upload(fileName, file);
+
+    if (uploadError) {
+      console.error(uploadError);
+      return alert("Upload file lỗi!");
+    }
+
+    // 🔗 Lấy public URL
+    const { data: publicUrlData } = sb
+      .storage
+      .from("submissions")
+      .getPublicUrl(fileName);
+
+    fileUrl = publicUrlData.publicUrl;
   }
 
-  if (!title) {
-    alert("Tiêu đề không được để trống");
-    return;
+  // 🔗 Ưu tiên GitHub > file
+  let finalUrl = githubInput || fileUrl;
+
+  if (!finalUrl) {
+    return alert("Bạn phải nhập GitHub hoặc upload file");
   }
 
-  if (github && !github.includes("github.com")) {
-    alert("Link GitHub không hợp lệ");
-    return;
+  if (githubInput && !githubInput.includes("github.com")) {
+    return alert("Link GitHub không hợp lệ");
   }
 
-  // ✅ Convert datetime
-  let due_date = null;
-  if (due) {
-    due_date = due.replace("T", " ");
-  }
+  // 🕒 Convert datetime
+  let due_date = due ? due.replace("T", " ") : null;
 
   const { error } = await sb
     .from("assignments")
@@ -154,7 +198,7 @@ async function create() {
       lesson_id: parseInt(lesson_id),
       title: title,
       description: desc,
-      github_repo_url: github,
+      github_repo_url: finalUrl,
       max_score: parseInt(score || 10),
       due_date: due_date,
       updated_at: new Date().toISOString()
@@ -170,8 +214,10 @@ async function create() {
     document.getElementById("title").value = "";
     document.getElementById("desc").value = "";
     document.getElementById("github").value = "";
+    document.getElementById("file").value = "";
     document.getElementById("score").value = 10;
     document.getElementById("due").value = "";
+    document.getElementById("lesson").value = "";
   }
 }
 </script>
