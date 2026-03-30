@@ -75,7 +75,7 @@
   <!-- Max score -->
   <input id="score" type="number" value="10">
 
-  <!-- Due date -->
+  <!-- Ngày kết thúc -->
   <label>Ngày kết thúc</label>
   <input id="due" type="datetime-local">
 
@@ -103,6 +103,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     .select("lesson_id, title");
 
   if (error) {
+    console.error(error);
     alert("Không load được lessons");
     return;
   }
@@ -144,15 +145,18 @@ async function create() {
   }
 
   // 🔗 Lấy link file
-  const { data } = sb
+  const { data: publicUrlData } = sb
     .storage
     .from("submissions")
     .getPublicUrl(fileName);
 
-  const fileUrl = data.publicUrl;
+  const fileUrl = publicUrlData.publicUrl;
 
-  // 🕒 Ngày kết thúc -> lưu vào updated_at
-  let updated_at = due ? new Date(due).toISOString() : null;
+  // 🕒 Ngày bắt đầu = NOW
+  const now = new Date().toISOString();
+
+  // 🕒 Ngày kết thúc
+  const updated_at = due ? new Date(due).toISOString() : null;
 
   // 🚀 Insert DB
   const { error } = await sb
@@ -160,19 +164,23 @@ async function create() {
     .insert([{
       lesson_id: parseInt(lesson_id),
       title: title,
-      description: desc,
+      description: desc || "",
       github_repo_url: fileUrl,
       max_score: parseInt(score || 10),
-      updated_at: updated_at
+
+      // 🔥 QUAN TRỌNG
+      due_date: now,        // ngày bắt đầu
+      updated_at: updated_at, // ngày kết thúc
+      created_at: now
     }]);
 
   if (error) {
-    console.error(error);
+    console.error("FULL ERROR:", error);
     alert("Lỗi: " + error.message);
   } else {
     alert("🎉 Tạo thành công!");
 
-    // reset
+    // reset form
     document.getElementById("title").value = "";
     document.getElementById("desc").value = "";
     document.getElementById("file").value = "";
