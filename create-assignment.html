@@ -1,7 +1,9 @@
 <!DOCTYPE html>
-<html>
+<html lang="vi">
 <head>
-  <title>Create Assignment</title>
+  <meta charset="UTF-8">
+  <title>Tạo bài tập</title>
+
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <style>
@@ -12,7 +14,7 @@
     }
 
     .container {
-      max-width: 600px;
+      max-width: 650px;
       margin: auto;
       background: white;
       padding: 25px;
@@ -24,10 +26,12 @@
       margin-bottom: 20px;
     }
 
-    input, textarea {
+    input, textarea, select {
       width: 100%;
       padding: 10px;
       margin-top: 10px;
+      border-radius: 8px;
+      border: 1px solid #ddd;
     }
 
     button {
@@ -38,6 +42,11 @@
       color: white;
       border: none;
       border-radius: 8px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #4338ca;
     }
   </style>
 </head>
@@ -47,10 +56,25 @@
 <div class="container">
   <h2>📘 Giao bài tập</h2>
 
-  <input id="title" placeholder="Tiêu đề">
+  <!-- Lesson -->
+  <label>Bài học</label>
+  <select id="lesson">
+    <option value="">-- Chọn bài học --</option>
+  </select>
+
+  <!-- Title -->
+  <input id="title" placeholder="Tiêu đề bài tập">
+
+  <!-- Description -->
   <textarea id="desc" placeholder="Mô tả"></textarea>
 
-  <input id="github" placeholder="GitHub repo (template)">
+  <!-- GitHub -->
+  <input id="github" placeholder="GitHub repo template">
+
+  <!-- Max score -->
+  <input id="score" type="number" value="10">
+
+  <!-- Due date -->
   <input id="due" type="datetime-local">
 
   <button onclick="create()">Tạo bài tập</button>
@@ -62,32 +86,92 @@ const supabase = window.supabase.createClient(
   "sb_publishable_u0kVgF9XCLTk5tD9M_xj9w_9lKguAgf"
 );
 
-// check login
-const teacher_id = localStorage.getItem("teacher_id");
-if (!teacher_id) {
+// 🔐 Check login
+if (localStorage.getItem("role") !== "teacher") {
+  alert("Bạn chưa đăng nhập!");
   window.location.href = "login.html";
 }
 
+// 🚀 Load lessons từ DB
+async function loadLessons() {
+  const { data, error } = await supabase
+    .from("lessons")
+    .select("lesson_id, title")
+    .order("lesson_id", { ascending: true });
+
+  if (error) {
+    console.error(error);
+    alert("Không load được lesson");
+    return;
+  }
+
+  const select = document.getElementById("lesson");
+
+  data.forEach(l => {
+    const opt = document.createElement("option");
+    opt.value = l.lesson_id;
+    opt.textContent = l.title;
+    select.appendChild(opt);
+  });
+}
+
+loadLessons();
+
+// 🚀 Tạo bài tập
 async function create() {
-  const title = document.getElementById("title").value;
-  const desc = document.getElementById("desc").value;
-  const github = document.getElementById("github").value;
+  const lesson_id = document.getElementById("lesson").value;
+  const title = document.getElementById("title").value.trim();
+  const desc = document.getElementById("desc").value.trim();
+  const github = document.getElementById("github").value.trim();
+  const score = document.getElementById("score").value;
   const due = document.getElementById("due").value;
+
+  // ✅ Validate
+  if (!lesson_id) {
+    alert("Vui lòng chọn bài học");
+    return;
+  }
+
+  if (!title) {
+    alert("Tiêu đề không được để trống");
+    return;
+  }
+
+  if (github && !github.includes("github.com")) {
+    alert("Link GitHub không hợp lệ");
+    return;
+  }
+
+  // ✅ Convert datetime
+  let due_date = null;
+  if (due) {
+    due_date = due.replace("T", " ");
+  }
 
   const { error } = await supabase
     .from("assignments")
     .insert([{
+      lesson_id: parseInt(lesson_id),
       title: title,
       description: desc,
       github_repo_url: github,
-      due_date: due,
-      lesson_id: 1 // bạn có thể chọn dynamic
+      max_score: parseInt(score || 10),
+      due_date: due_date,
+      updated_at: new Date().toISOString()
     }]);
 
   if (error) {
+    console.error(error);
     alert("Lỗi: " + error.message);
   } else {
-    alert("Tạo bài thành công!");
+    alert("🎉 Tạo bài tập thành công!");
+
+    // reset form
+    document.getElementById("title").value = "";
+    document.getElementById("desc").value = "";
+    document.getElementById("github").value = "";
+    document.getElementById("score").value = 10;
+    document.getElementById("due").value = "";
   }
 }
 </script>
