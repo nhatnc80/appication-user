@@ -65,7 +65,7 @@ const supabase = window.supabase.createClient(
 // check login
 const teacher_id = localStorage.getItem("teacher_id");
 if (!teacher_id) {
-  window.location.href = "teacher-login.html";
+  window.location.href = "login.html";
 }
 
 async function create() {
